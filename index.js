@@ -7,35 +7,27 @@ const customError = (data) => {
   return false
 }
 
-// Define custom parameters to be used by the adapter.
-// Extra parameters can be stated in the extra object,
-// with a Boolean value indicating whether or not they
-// should be required.
+// The parameters that the external adapter accepts in the data object
+// internal variable name followed by an array of acceptable input field names
+// if multiple matching inputs are found, the lowest index takes priority
+// Simple API so we don't take an endpoint param
 const customParams = {
-  base: ['base', 'from', 'coin'],
-  quote: ['quote', 'to', 'market'],
+  inputToken: ['token', 'asset', 'coin'],
   endpoint: false
 }
 
 const createRequest = (input, callback) => {
-  // The Validator helps you validate the Chainlink request data
+  // The Validator helps you validate the Chainlink request data by checking types
   const validator = new Validator(callback, input, customParams)
   const jobRunID = validator.validated.id
-  const endpoint = validator.validated.data.endpoint || 'price'
-  const url = `https://min-api.cryptocompare.com/data/${endpoint}`
-  const fsym = validator.validated.data.base.toUpperCase()
-  const tsyms = validator.validated.data.quote.toUpperCase()
+  const tokenSymbol = validator.validated.data.inputToken.toLowerCase()
+  const url = `https://api.coinpaprika.com/v1/tickers/${tokenSymbol}`
 
   const params = {
-    fsym,
-    tsyms
+    tokenSymbol
   }
 
-  // This is where you would add method and headers
-  // you can add method like GET or POST and add it to the config
-  // The default is GET requests
-  // method = 'get' 
-  // headers = 'headers.....'
+  // Config for Requester call
   const config = {
     url,
     params
@@ -45,10 +37,21 @@ const createRequest = (input, callback) => {
   // or connection failure
   Requester.request(config, customError)
     .then(response => {
-      // It's common practice to store the desired value at the top-level
-      // result key. This allows different adapters to be compatible with
-      // one another.
-      response.data.result = Requester.validateResultNumber(response.data, [tsyms])
+      // Originally I returned all the API data and the adapter result,
+      // const resObj = { symbol: `${response.data.symbol}`, timestamp: `${response.data.last_updated}`, price: `${response.data.quotes.USD.price}`, market_cap: `${response.data.quotes.USD.market_cap}`, volume_24h: `${response.data.quotes.USD.volume_24h}` }
+      // response.data.result = resObj
+
+      // Decided it was cleaner to just return my result object, not sure what the best practice is
+      const customDataObj = {
+        result: {
+          symbol: `${response.data.symbol}`,
+          timestamp: `${response.data.last_updated}`,
+          price: `${response.data.quotes.USD.price}`,
+          market_cap: `${response.data.quotes.USD.market_cap}`,
+          volume_24h: `${response.data.quotes.USD.volume_24h}`
+        }
+      }
+      response.data = customDataObj
       callback(response.status, Requester.success(jobRunID, response))
     })
     .catch(error => {
