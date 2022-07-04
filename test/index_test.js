@@ -4,7 +4,6 @@ const createRequest = require('../index.js').createRequest
 describe('createRequest:', () => {
   const jobID = '1'
 
-  // The successful calls run, but the unseccesful ones don't
   context('successful calls', () => {
     const requests = [
       { name: 'id not supplied', testData: { data: { token: 'btc-bitcoin' } } },
